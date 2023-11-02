@@ -107,16 +107,28 @@ function ChatContextWrapper({ children }) {
       stream: true,
     };
 
-    await postRequest(payload, promptObj)
+    // await postRequest(payload, promptObj)
+    //   .then(() => {
+    //     // Save prompt to db
+    //     saveChatMessage(promptObj).catch((e) => {
+    //       console.log(e.message);
+    //     });
+    //   })
+    //   .catch((e) => {
+    //     console.log(e.messsage);
+    //   });
+      await generate(payload)
       .then(() => {
-        // Save prompt to db
-        saveChatMessage(promptObj).catch((e) => {
-          console.log(e.message);
-        });
+                // Save prompt to db
+        // saveChatMessage(promptObj)
+        
+        // .catch((e) => {
+        //   console.log(e.message);
+        // });
       })
-      .catch((e) => {
-        console.log(e.messsage);
-      });
+      .catch(e => {
+        console.log(e.message);
+      })
   };
 
   // OPENAI API request
@@ -227,6 +239,68 @@ function ChatContextWrapper({ children }) {
     });
     source.stream();
   }
+  const generate = async (payload) => {
+
+    setStreaming(true);
+    try {
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+
+        body: JSON.stringify({
+          prompt: payload.messages,
+          temperature: 0.8,
+          model: model,
+        }),
+      });
+
+      if (!response.ok) {
+        setStreaming(false);
+        const err = await response.json();
+        console.log(err);
+        throw new Error(err.error);
+      }
+
+      const data = response.body;
+
+      if (!data) {
+        return;
+      }
+      const reader = data.getReader();
+      const decoder = new TextDecoder();
+      let isDone = false;
+      let completeResp = "";
+
+      while (!isDone) {
+        const { value, done } = await reader.read();
+        isDone = done;
+        const chunkValue = decoder.decode(value);
+
+        completeResp += chunkValue;
+        console.log(chunkValue);
+
+        // setTranslation((prev) => prev + chunkValue)
+
+
+
+      }
+      console.log(completeResp);
+      setStreaming(false);
+
+    } catch (error) {
+      // toast({
+      //   // id,
+      //   title: error.message,
+      //   duration: 7000,
+      //   status: "warning",
+      //   description: "",
+      // });
+      setStreaming(false);
+    }
+  };
+  
 
   const values = {
     chatList,
